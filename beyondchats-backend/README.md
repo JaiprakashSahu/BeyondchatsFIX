@@ -2,15 +2,84 @@
 
 A Node.js + Express backend that scrapes articles from the BeyondChats blog, enhances them using AI, and provides full CRUD REST APIs for article management.
 
-## 📋 Project Overview
+## Live Deployment
 
-This project consists of two phases:
+- **Backend API (Render):** https://beyondchats-yt9u.onrender.com
+- **API Endpoint:** https://beyondchats-yt9u.onrender.com/api/articles
+- **Health Check:** https://beyondchats-yt9u.onrender.com/
 
-**Phase 1:** Automatically scrapes the 5 oldest articles from [https://beyondchats.com/blogs/](https://beyondchats.com/blogs/), navigates to the last pagination page, extracts their full content, and stores them in MongoDB.
+The backend is stateless and frontend-agnostic. CORS is enabled to allow requests from any origin, including the deployed Vercel frontend.
 
-**Phase 2:** Enhances scraped articles by searching Google for top-ranking similar content, scraping reference articles, and using an LLM to rewrite articles with improved structure, SEO, and formatting.
+## Project Overview
 
-## 🛠️ Tech Stack
+This project implements **Phase 1** and **Phase 2** of the assignment:
+
+| Phase | Description | Implementation |
+|-------|-------------|----------------|
+| **Phase 1** | **Scraping + CRUD APIs** | Scrapes the 5 oldest articles from BeyondChats blog, stores in MongoDB, exposes REST API |
+| **Phase 2** | **Google Search + LLM Rewriting** | Searches Google for related content, scrapes references, rewrites articles using Groq LLM |
+| Phase 3 | React Frontend UI | See frontend repository |
+
+### Terminology
+
+- **Original Articles** (`isUpdated = false`) — Scraped directly from BeyondChats blog
+- **Updated Articles** / **AI-Enhanced Articles** (`isUpdated = true`) — Rewritten versions with improved structure and SEO
+
+There is a one-to-one mapping between original and updated articles. Phase 2 creates new Updated Articles without overwriting the originals.
+
+## Architecture / Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Phase 1: Scraper                            │
+│              Runs on server startup or via API                  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ Scrapes 5 oldest articles
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      MongoDB (Atlas)                            │
+│                    Articles Collection                          │
+│     Original Articles (isUpdated=false)                         │
+│     Updated Articles (isUpdated=true)                           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+        ┌──────────────────┴──────────────────┐
+        │                                     │
+        ▼                                     ▼
+┌───────────────────┐               ┌─────────────────────────────┐
+│   Phase 2 Script  │               │    REST API (Express)       │
+│   runPhase2.js    │───POST───────▶│    /api/articles            │
+│                   │               │    Serves Frontend          │
+└───────────────────┘               └─────────────────────────────┘
+        │                                     ▲
+        │ Google Search (Serper)              │ HTTP GET
+        │ LLM Rewrite (Groq)                  │
+        ▼                                     │
+┌───────────────────┐               ┌─────────────────────────────┐
+│ External Sources  │               │   Frontend (React/Vercel)   │
+└───────────────────┘               └─────────────────────────────┘
+```
+
+## How Frontend Consumes This API
+
+The frontend (deployed on Vercel) interacts with this backend as follows:
+
+1. **Fetch All Articles:** `GET /api/articles`
+   - Returns both Original and Updated articles
+   - Frontend filters by `isUpdated` field
+
+2. **Fetch Single Article:** `GET /api/articles/:id`
+   - Returns full article content including references
+
+3. **Filtering Logic:**
+   - `isUpdated = false` → Original Articles
+   - `isUpdated = true` → Updated Articles (AI-Enhanced)
+
+4. **References Display:**
+   - Updated articles include a `references` array
+   - Frontend renders these as clickable external links
+
+## Tech Stack
 
 - **Runtime:** Node.js
 - **Framework:** Express.js
@@ -18,11 +87,11 @@ This project consists of two phases:
 - **HTTP Client:** Axios
 - **HTML Parser:** Cheerio
 - **Environment:** dotenv
-- **Security:** CORS
+- **Security:** CORS (enabled for all origins)
 - **Search API:** Serper.dev (Google Search)
 - **AI/LLM:** Groq (Llama 3.1 8B)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 beyondchats-backend/
@@ -52,7 +121,7 @@ beyondchats-backend/
 └── README.md                  # Documentation
 ```
 
-## 🚀 Local Setup
+## Local Setup
 
 ### Prerequisites
 
@@ -62,7 +131,7 @@ beyondchats-backend/
 
 ### Installation Steps
 
-1. **Clone/Navigate to the project:**
+1. **Navigate to the project:**
    ```bash
    cd beyondchats-backend
    ```
@@ -74,13 +143,13 @@ beyondchats-backend/
 
 3. **Configure environment variables:**
    
-   Edit the `.env` file with your settings:
+   Create a `.env` file with your settings:
    ```env
    PORT=5000
    MONGODB_URI=mongodb://localhost:27017/beyondchats
    ```
    
-   For MongoDB Atlas, use your connection string:
+   For MongoDB Atlas:
    ```env
    MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/beyondchats
    ```
@@ -97,24 +166,24 @@ beyondchats-backend/
    npm start
    ```
 
-5. **The scraper will automatically run on server startup** and fetch the 5 oldest articles from BeyondChats blog.
+5. **The scraper automatically runs on server startup** and fetches the 5 oldest articles from BeyondChats blog.
 
-## 🔧 Environment Variables
+## Environment Variables
 
 | Variable | Description | Required For |
 |----------|-------------|--------------|
 | `PORT` | Server port number (default: 5000) | Phase 1 |
-| `MONGODB_URI` | MongoDB connection string | Phase 1 |
+| `MONGODB_URI` | MongoDB connection string | Phase 1는 |
 | `GOOGLE_SEARCH_API_KEY` | Serper.dev API key | Phase 2 |
 | `GROQ_API_KEY` | Groq API key | Phase 2 |
 | `BACKEND_API_BASE_URL` | API base URL (default: http://localhost:5000/api) | Phase 2 |
 
 ### Getting API Keys
 
-1. **Serper.dev (Google Search):** Sign up at [https://serper.dev/](https://serper.dev/) to get your API key
+1. **Serper.dev (Google Search):** Sign up at [https://serper.dev/](https://serper.dev/)
 2. **Groq:** Get your API key from [https://console.groq.com/keys](https://console.groq.com/keys)
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Articles
 
@@ -172,34 +241,21 @@ curl -X PUT http://localhost:5000/api/articles/<article_id> \
 curl -X DELETE http://localhost:5000/api/articles/<article_id>
 ```
 
-## 🕷️ Scraper Logic
+## Scraper Logic (Phase 1)
 
-The scraper (`scrapeBeyondChats.js`) performs the following steps:
+The scraper (`scrapeBeyondChats.js`) performs the following:
 
-1. **Fetch Blog Page:** Loads the main blog page at `https://beyondchats.com/blogs/`
+1. **Fetch Blog Page:** Loads `https://beyondchats.com/blogs/`
+2. **Detect Pagination:** Finds the last page number
+3. **Navigate to Last Page:** Goes to the oldest articles (e.g., `/blogs/page/15/`)
+4. **Collect Article URLs:** Extracts 5 article URLs, moving to previous pages if needed
+5. **Check for Duplicates:** Skips articles that already exist (based on `sourceUrl`)
+6. **Scrape Full Content:** Extracts title, body, and reference links from each article
+7. **Save to Database:** Stores articles with `isUpdated = false`
 
-2. **Detect Pagination:** Parses the page to find pagination elements and determines the last page number
+The scraper runs automatically on server startup and can be triggered manually via `POST /api/scrape`.
 
-3. **Navigate to Last Page:** Goes to the last pagination page (e.g., `/blogs/page/15/`) where the oldest articles reside
-
-4. **Collect Article URLs:** Extracts article URLs from the last page. If fewer than 5 articles exist, it moves to previous pages to collect more
-
-5. **Check for Duplicates:** Queries MongoDB to skip articles that already exist (based on `sourceUrl`)
-
-6. **Scrape Full Content:** For each new article:
-   - Fetches the article page
-   - Extracts the title from `<h1>` element
-   - Extracts the full article body from `.post-content` or `.entry-content`
-   - Removes navigation, footer, ads, and other non-content elements
-   - Collects external reference links
-
-7. **Save to Database:** Stores each article with title, content, sourceUrl, references, and timestamps
-
-8. **Duplicate Prevention:** Uses unique constraint on `sourceUrl` and double-checks before saving
-
-The scraper runs automatically once when the server starts and can also be triggered manually via `POST /api/scrape`.
-
-## 📊 Database Schema
+## Database Schema
 
 ```javascript
 Article {
@@ -213,13 +269,15 @@ Article {
 }
 ```
 
-## 🤖 Phase 2: Article Enhancement Pipeline
+## Phase 2: Article Enhancement Pipeline
 
-Phase 2 enhances the scraped articles by researching top-ranking content and using AI to rewrite them.
+Phase 2 enhances Original Articles by researching top-ranking content and using AI to rewrite them.
+
+**Important:** Phase 2 does NOT overwrite originals. It creates new Updated Articles with `isUpdated = true`.
 
 ### Running Phase 2
 
-1. **Ensure Phase 1 is complete** (server has run and scraped articles exist in MongoDB)
+1. **Ensure Phase 1 is complete** (Original Articles exist in MongoDB)
 
 2. **Configure API keys** in your `.env` file:
    ```env
@@ -240,53 +298,34 @@ Phase 2 enhances the scraped articles by researching top-ranking content and usi
 
 ### Phase 2 Workflow
 
-1. **Fetch Articles:** Gets all articles from `/api/articles` where `isUpdated = false`
-
-2. **Google Search:** For each article title, searches Google via Serper.dev API
-
-3. **Filter Results:**
-   - Excludes beyondchats.com URLs
-   - Excludes social media, Wikipedia, video platforms
-   - Selects top 2 valid blog/article URLs
-
-4. **Scrape References:** Extracts main content from each reference article:
-   - Removes navigation, ads, footer, sidebars
-   - Preserves headings and paragraph structure
-   - Cleans whitespace
-
-5. **LLM Rewrite:** Sends to Groq Llama 3.1 8B:
-   - Improves clarity and structure
-   - Matches formatting style of top-ranking articles
-   - Ensures originality (no copying)
-   - Generates SEO-optimized title
-
-6. **Publish:** Creates new article via `POST /api/articles`:
-   - `isUpdated = true`
-   - `references = [url1, url2]`
-   - Appends references section at bottom
+1. **Fetch Articles:** Gets all articles where `isUpdated = false`
+2. **Google Search:** Searches for related content via Serper.dev API
+3. **Filter Results:** Excludes beyondchats.com, social media, Wikipedia, and video platforms; selects top 2 valid URLs
+4. **Scrape References:** Extracts main content from each reference article
+5. **LLM Rewrite:** Sends to Groq Llama 3.1 8B for improved clarity, structure, and SEO
+6. **Publish:** Creates new article via `POST /api/articles` with `isUpdated = true` and references
 
 ### Phase 2 Output
 
-The script provides detailed logging:
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║           PHASE 2: Article Enhancement Pipeline            ║
 ╚════════════════════════════════════════════════════════════╝
 
-📝 Processing Article 1/5
+Processing Article 1/5
    Title: Introduction to Chatbots
    
    Step 1: Search Google for related articles...
-   ✅ Found 2 valid external URLs
+   Found 2 valid external URLs
    
    Step 2: Scraping external articles...
-   ✅ Scraped 3500 characters
+   Scraped 3500 characters
    
    Step 3: Rewriting with LLM...
-   ✅ LLM rewrite complete
+   LLM rewrite complete
    
    Step 4: Publishing rewritten article...
-   ✅ Successfully published with ID: 507f1f77bcf86cd799439011
+   Successfully published with ID: 507f1f77bcf86cd799439011
 
 ╔════════════════════════════════════════════════════════════╗
 ║                    PHASE 2 COMPLETE                        ║
@@ -298,11 +337,11 @@ The script provides detailed logging:
 
 Phase 2 enforces a one-to-one mapping between original and updated articles. Re-running the script does not create duplicate updated articles.
 
-### Notes
+## Notes
 
-- `.env` files are excluded from version control; `.env.example` is provided for reference
-- A duplicate index warning may appear during development due to schema refactoring; it does not affect functionality
+- `.env` files are excluded from version control
+- A duplicate index warning may appear during development; it does not affect functionality
 
-## 📝 License
+## License
 
 This project is provided for evaluation purposes as part of an internship assignment.
