@@ -12,6 +12,7 @@ function Home() {
         const fetchArticles = async () => {
             try {
                 setLoading(true)
+                setError(null)
                 const data = await getAllArticles()
                 const normalizedData = data.map(article => ({
                     ...article,
@@ -55,13 +56,25 @@ function Home() {
                 const scopedArticles = [...numberedOriginals, ...numberedUpdated]
 
                 setArticles(scopedArticles)
-                setError(null)
+                console.log(`✅ Loaded ${scopedArticles.length} articles successfully`)
             } catch (err) {
-                const errorMessage = err.code === 'ERR_NETWORK'
-                    ? 'Cannot connect to backend. Please ensure the server is running.'
-                    : 'Failed to load articles. Please try again later.'
+                console.error('❌ Fetch error details:', err)
+
+                let errorMessage = 'Failed to load articles. Please try again later.'
+
+                if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+                    errorMessage = 'Cannot connect to backend. The server may be starting up (cold start). Please wait 30 seconds and refresh.'
+                } else if (err.code === 'ECONNABORTED') {
+                    errorMessage = 'Request timed out. The backend may be waking up. Please try again in a moment.'
+                } else if (err.response?.status === 404) {
+                    errorMessage = 'API endpoint not found. Please check the backend configuration.'
+                } else if (err.response?.status >= 500) {
+                    errorMessage = 'Server error. Please try again later.'
+                } else if (err.response?.data?.message) {
+                    errorMessage = err.response.data.message
+                }
+
                 setError(errorMessage)
-                console.error('Fetch error:', err)
             } finally {
                 setLoading(false)
             }

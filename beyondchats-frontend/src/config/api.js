@@ -2,18 +2,30 @@
 // For local development: VITE_API_BASE_URL=http://localhost:5000/api
 // For production: VITE_API_BASE_URL=https://beyondchats-yt9u.onrender.com/api
 
-let envUrl = import.meta.env.VITE_API_BASE_URL;
+const getApiBaseUrl = () => {
+    let url = import.meta.env.VITE_API_BASE_URL;
 
-// Auto-fix: Ensure URL ends with /api
-if (envUrl && !envUrl.endsWith('/api')) {
-    envUrl = envUrl.replace(/\/$/, '') + '/api';
-}
+    // If no env var, use fallback based on environment
+    if (!url) {
+        url = import.meta.env.PROD
+            ? 'https://beyondchats-yt9u.onrender.com/api'
+            : 'http://localhost:5000/api';
+    }
 
-// Use environment variable if set, otherwise detect environment
-export const API_BASE_URL = envUrl || (
-    import.meta.env.PROD
-        ? 'https://beyondchats-yt9u.onrender.com/api'  // Production fallback
-        : 'http://localhost:5000/api'                   // Development fallback
-);
+    // Normalize: remove trailing slash if present
+    url = url.replace(/\/+$/, '');
 
+    // Ensure URL ends with /api (but don't duplicate)
+    if (!url.endsWith('/api')) {
+        url = url + '/api';
+    }
+
+    return url;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Debug logging (visible in browser console)
 console.log('🔗 API Base URL:', API_BASE_URL);
+console.log('🌍 Environment:', import.meta.env.PROD ? 'production' : 'development');
+

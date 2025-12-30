@@ -8,14 +8,20 @@ const scrapeBeyondChats = require('./scraper/scrapeBeyondChats');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration - Allow all origins for deployment
-app.use(
-    cors({
-        origin: '*',
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-    })
-);
+// CORS Configuration - Production-safe for Vercel + Render
+const corsOptions = {
+    origin: true, // Reflect request origin (allows all origins dynamically)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+    optionsSuccessStatus: 200, // For legacy browser support
+};
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Apply CORS to all routes
+app.use(cors(corsOptions));
 
 // Body parser middleware
 app.use(express.json());
